@@ -17,6 +17,8 @@ import (
 	"github.com/zekrotja/ken"
 )
 
+var numberOfPlayers int = 0
+
 func Execute(token string) error {
 	var terminationSignalChannel = make(chan os.Signal, 1)
 	signal.Notify(terminationSignalChannel, os.Interrupt, syscall.SIGTERM)
@@ -106,7 +108,7 @@ func spawnCheckSatisfactoryServer(ctx context.Context, session *discordgo.Sessio
 			if err != nil {
 				return
 			}
-			t := time.Duration(5) * time.Second
+			t := time.Duration(60) * time.Second
 			err = sleep(ctx, t)
 			if err != nil {
 				return
@@ -124,11 +126,22 @@ func checkSatisfactoryServer(_ context.Context, session *discordgo.Session) erro
 	if err != nil {
 		return err
 	}
-	channel := os.Getenv("DISCORD_CHANNEL")
-	role := os.Getenv("DISCORD_ROLE")
-	_, err = session.ChannelMessageSend(channel, fmt.Sprintf("%s %d/%d pioneers in MASSAGE-2(A-B)b", role, response.Data.ServerGameState.NumConnectedPlayers, response.Data.ServerGameState.PlayerLimit))
-	if err != nil {
-		return err
+	if numberOfPlayers < response.Data.ServerGameState.NumConnectedPlayers {
+		numberOfPlayers = response.Data.ServerGameState.NumConnectedPlayers
+		channel := os.Getenv("DISCORD_CHANNEL")
+		role := os.Getenv("DISCORD_ROLE")
+		_, err = session.ChannelMessageSend(channel, fmt.Sprintf("%s A new pioneer entered in the server. %d/%d pioneers in MASSAGE-2(A-B)b", role, response.Data.ServerGameState.NumConnectedPlayers, response.Data.ServerGameState.PlayerLimit))
+		if err != nil {
+			return err
+		}
+	} else if numberOfPlayers > response.Data.ServerGameState.NumConnectedPlayers {
+		numberOfPlayers = response.Data.ServerGameState.NumConnectedPlayers
+		channel := os.Getenv("DISCORD_CHANNEL")
+		role := os.Getenv("DISCORD_ROLE")
+		_, err = session.ChannelMessageSend(channel, fmt.Sprintf("%s A pioneer exited the server. %d/%d pioneers in MASSAGE-2(A-B)b", role, response.Data.ServerGameState.NumConnectedPlayers, response.Data.ServerGameState.PlayerLimit))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

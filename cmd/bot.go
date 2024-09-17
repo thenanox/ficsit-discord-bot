@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"github.com/thenanox/ficsit-discord-bot/cmd/slashcommands/ping"
 	"github.com/thenanox/ficsit-discord-bot/cmd/slashcommands/pioneers"
 	"github.com/thenanox/ficsit-discord-bot/internal/satisfactory"
@@ -26,6 +29,8 @@ func Execute(token string) error {
 	// cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 	waitGroup := &sync.WaitGroup{}
+
+	startHealthServer("0.0.0.0:8080")
 
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
@@ -66,6 +71,33 @@ func Execute(token string) error {
 			os.Exit(0)
 		}
 	}
+}
+
+func startHealthServer(addr string) *http.Server {
+	// HTTP Gateway server
+	router := mux.NewRouter()
+	router.HandleFunc("/api/health", HandleHealth)
+
+	srv := &http.Server{
+		Addr:              addr,
+		WriteTimeout:      time.Second * 15,
+		ReadTimeout:       time.Second * 15,
+		IdleTimeout:       time.Second * 60,
+		ReadHeaderTimeout: time.Second * 15,
+		Handler:           handlers.LoggingHandler(os.Stdout, router),
+	}
+	go func() {
+		fmt.Printf("starting HTTP main server on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			panic(fmt.Sprintf("error starting HTTP main server: %v", err))
+		}
+	}()
+
+	return srv
+}
+
+func HandleHealth(w http.ResponseWriter, r *http.Request) {
+	return
 }
 
 func registerSlashCommands(_ context.Context, session *discordgo.Session) error {

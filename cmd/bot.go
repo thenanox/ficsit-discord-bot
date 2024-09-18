@@ -65,6 +65,7 @@ func Execute(token string) error {
 	for {
 		select {
 		case <-terminationSignalChannel:
+			fmt.Printf("shutting down server...")
 			cancel()
 			waitGroup.Wait()
 			close(terminationSignalChannel)
@@ -101,6 +102,7 @@ func HandleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func registerSlashCommands(_ context.Context, session *discordgo.Session) error {
+	fmt.Printf("registering slash commands...")
 	k, err := ken.New(session)
 	if err != nil {
 		return err
@@ -118,6 +120,7 @@ func registerSlashCommands(_ context.Context, session *discordgo.Session) error 
 }
 
 func routineManager(ctx context.Context, session *discordgo.Session, waitGroup *sync.WaitGroup) {
+	fmt.Printf("creating routine manager...")
 	waitGroup.Add(1)
 	go spawnCheckSatisfactoryServer(ctx, session, waitGroup)
 }
@@ -126,6 +129,7 @@ func spawnCheckSatisfactoryServer(ctx context.Context, session *discordgo.Sessio
 	defer waitGroup.Done()
 	defer func() {
 		if x := recover(); x != nil {
+			fmt.Printf("recovering from routine error %v", x)
 			waitGroup.Add(1)
 			go spawnCheckSatisfactoryServer(ctx, session, waitGroup)
 		}
@@ -138,11 +142,13 @@ func spawnCheckSatisfactoryServer(ctx context.Context, session *discordgo.Sessio
 		default:
 			err := checkSatisfactoryServer(ctx, session)
 			if err != nil {
+				fmt.Printf("checking server error %v", err)
 				return
 			}
 			t := time.Duration(60) * time.Second
 			err = sleep(ctx, t)
 			if err != nil {
+				fmt.Printf("sleeping error %v", err)
 				return
 			}
 		}
@@ -154,11 +160,13 @@ func checkSatisfactoryServer(_ context.Context, session *discordgo.Session) erro
 	if err != nil {
 		return err
 	}
+	fmt.Printf("number of players %d", response.Data.ServerGameState.NumConnectedPlayers)
 	err = session.UpdateCustomStatus(fmt.Sprintf("%d/%d pioneers", response.Data.ServerGameState.NumConnectedPlayers, response.Data.ServerGameState.PlayerLimit))
 	if err != nil {
 		return err
 	}
 	if numberOfPlayers < response.Data.ServerGameState.NumConnectedPlayers {
+		fmt.Printf("new player before %d after %d", numberOfPlayers, response.Data.ServerGameState.NumConnectedPlayers)
 		numberOfPlayers = response.Data.ServerGameState.NumConnectedPlayers
 		channel := os.Getenv("DISCORD_CHANNEL")
 		role := os.Getenv("DISCORD_ROLE")
@@ -167,6 +175,7 @@ func checkSatisfactoryServer(_ context.Context, session *discordgo.Session) erro
 			return err
 		}
 	} else if numberOfPlayers > response.Data.ServerGameState.NumConnectedPlayers {
+		fmt.Printf("exit player before %d after %d", numberOfPlayers, response.Data.ServerGameState.NumConnectedPlayers)
 		numberOfPlayers = response.Data.ServerGameState.NumConnectedPlayers
 		channel := os.Getenv("DISCORD_CHANNEL")
 		role := os.Getenv("DISCORD_ROLE")

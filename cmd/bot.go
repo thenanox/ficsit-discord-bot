@@ -143,13 +143,11 @@ func spawnCheckSatisfactoryServer(ctx context.Context, session *discordgo.Sessio
 			err := checkSatisfactoryServer(ctx, session)
 			if err != nil {
 				fmt.Printf("checking server error %v", err)
-				return
 			}
 			t := time.Duration(60) * time.Second
 			err = sleep(ctx, t)
 			if err != nil {
 				fmt.Printf("sleeping error %v", err)
-				return
 			}
 		}
 	}
